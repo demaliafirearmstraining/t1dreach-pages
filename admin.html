@@ -9,7 +9,7 @@
 <script>
 const URL_='https://ovjjrjsupnehjtkalaho.supabase.co';let sb;const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function saveKey(){localStorage.setItem('t1d_pk',$('key').value.trim());location.reload()}
-async function init(){const k=localStorage.getItem('t1d_pk');if(!k){$('cfg').classList.remove('hide');return}
+async function init(){const k=localStorage.getItem('t1d_pk')||'sb_publishable_FaLkUC7aNjcf9ARRWMu6aw_0ZBbm5Vj';if(!k){$('cfg').classList.remove('hide');return}
  sb=supabase.createClient(URL_,k);const{data:{session}}=await sb.auth.getSession();if(!session){$('login').classList.remove('hide');return}
  const{data:isAdmin,error}=await sb.rpc('is_app_admin');if(error||!isAdmin){$('msg').textContent='This account is not a T1DReach admin.';return}
  $('who').textContent='Signed in as '+session.user.email;$('main').classList.remove('hide');load()}
