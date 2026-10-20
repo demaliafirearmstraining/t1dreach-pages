@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>T1DReach Moderation</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>body{font-family:system-ui,sans-serif;max-width:960px;margin:24px auto;padding:0 16px;color:#14254a}input,button{font:inherit;padding:8px 10px;margin:3px}button{cursor:pointer;border-radius:8px;border:1px solid #9ab}.card{border:1px solid #cde;border-radius:12px;padding:12px 14px;margin:10px 0}.meta{color:#567;font-size:13px}pre{white-space:pre-wrap;background:#f4f7fb;padding:8px;border-radius:8px;font-size:13px}.danger{background:#fde8e8;border-color:#e99}.hide{display:none}</style></head><body>
+<h1>T1DReach Moderation</h1>
+<div id="cfg" class="hide"><p>One-time setup: paste the project's <b>publishable (anon) key</b> from Supabase → Project Settings → API Keys. It's stored only in this browser.</p><input id="key" size="60" placeholder="sb_publishable_… or anon key"><button onclick="saveKey()">Save</button></div>
+<div id="login" class="hide"><input id="email" type="email" placeholder="admin email"><input id="pw" type="password" placeholder="password"><button onclick="signIn()">Sign in</button></div>
+<div id="main" class="hide"><span id="who" class="meta"></span> <button onclick="sb.auth.signOut().then(()=>location.reload())">Sign out</button> <label><input type="checkbox" id="all" onchange="load()"> include resolved</label> <button onclick="load()">Refresh</button><div id="list"></div></div>
+<p id="msg" class="meta"></p>
+<script>
+const URL_='https://ovjjrjsupnehjtkalaho.supabase.co';let sb;const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function saveKey(){localStorage.setItem('t1d_pk',$('key').value.trim());location.reload()}
+async function init(){const k=localStorage.getItem('t1d_pk');if(!k){$('cfg').classList.remove('hide');return}
+ sb=supabase.createClient(URL_,k);const{data:{session}}=await sb.auth.getSession();if(!session){$('login').classList.remove('hide');return}
+ const{data:isAdmin,error}=await sb.rpc('is_app_admin');if(error||!isAdmin){$('msg').textContent='This account is not a T1DReach admin.';return}
+ $('who').textContent='Signed in as '+session.user.email;$('main').classList.remove('hide');load()}
+async function signIn(){const{error}=await sb.auth.signInWithPassword({email:$('email').value,password:$('pw').value});if(error)return $('msg').textContent=error.message;location.reload()}
+async function load(){const{data,error}=await sb.rpc('admin_list_reports',{include_resolved:$('all').checked});if(error)return $('msg').textContent=error.message;
+ $('list').innerHTML=data.length?data.map(r=>`<div class="card"><b>${esc(r.target_type)}</b> reported — ${esc(r.reason)} <span class="meta">${new Date(r.created_at).toLocaleString()} · by ${esc(r.reporter_name||r.reporter_id)}</span>
+ ${r.details?`<p>${esc(r.details)}</p>`:''}<pre>${esc(r.target_preview)}</pre><div class="meta">Owner: ${esc(r.target_owner_name||r.target_owner_id||'unknown')} ${r.owner_banned?'· <b>BANNED</b>':''} ${r.resolved_at?'· resolved: '+esc(r.resolution):''}</div>
+ ${r.resolved_at?'':`<button onclick="resolve('${r.id}')">Mark reviewed (no action)</button>`}
+ ${r.target_type!=='profile'?`<button class="danger" onclick="removeC('${esc(r.target_type)}','${r.target_id}','${r.id}')">Remove content</button>`:''}
+ ${r.target_owner_id?(r.owner_banned?`<button onclick="ban('${r.target_owner_id}',false)">Unban user</button>`:`<button class="danger" onclick="ban('${r.target_owner_id}',true)">Ban user</button>`):''}</div>`).join(''):'<p>No open reports.</p>'}
+async function act(p){const{error}=await p;if(error)alert(error.message);load()}
+function resolve(id){act(sb.rpc('admin_resolve_report',{report_id:id,resolution:'reviewed - no action'}))}
+function removeC(t,id,rid){if(confirm('Permanently remove this '+t+'?'))act(sb.rpc('admin_remove_content',{target_type:t,target_id:id,report_id:rid}))}
+function ban(uid,b){const note=b?prompt('Reason for ban (optional)'):'';if(b&&note===null)return;act(sb.rpc('admin_set_ban',{user_id:uid,banned:b,note}))}
+init();
+</script></body></html>
